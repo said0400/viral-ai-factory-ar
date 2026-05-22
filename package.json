@@ -1,0 +1,17 @@
+{
+  "name": "viral-ai-factory-ar",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/generate.js",
+    "render": "remotion render remotion/index.ts ViralVideo output/video.mp4"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@remotion/cli": "^4.0.290",
+    "@remotion/google-fonts": "^4.0.290",
+    "dotenv": "^16.4.5",
+    "pexels": "^1.4.0",
+    "remotion": "^4.0.290"
+  }
+}
