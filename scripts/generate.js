@@ -15,7 +15,7 @@ const pexels = createClient(process.env.PEXELS_API_KEY);
 
 async function generateScript(topic) {
   console.log('[1/4] جيميناي يكتب السكريبت...');
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
   const prompt = `أنت كاتب محتوى فيروسي ليوتيوب شورتس. الموضوع: ${topic}
   أرجع JSON فقط بدون أي شرح:
   {
