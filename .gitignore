@@ -1,0 +1,6 @@
+node_modules
+.env
+output/
+assets/
+*.mp4
+*.wav
