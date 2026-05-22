@@ -5,21 +5,38 @@ on:
       topic:
         description: 'موضوع الفيديو'
         required: true
-        default: 'قصة نجاح ملهمة'
+        default: 'قصة نجاح'
 
 jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '18' }
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: npm install && pip install google-genai
-      - env:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          npm install
+          pip install google-genai
+
+      - name: Generate Video
+        env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-        run: npm start "${{ github.event.inputs.topic }}"
-      - uses: actions/upload-artifact@v4
-        with: { name: viral-video, path: output/video.mp4 }
+        run: node scripts/generate.js "${{ github.event.inputs.topic }}"
+
+      - name: Upload Video
+        uses: actions/upload-artifact@v4
+        with:
+          name: viral-video
+          path: output/video.mp4
