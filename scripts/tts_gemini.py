@@ -1,37 +1,75 @@
-import mimetypes, os, sys, struct
+import mimetypes
+import os
+import sys
+import struct
 from google import genai
 from google.genai import types
 
-def save(f, d):
-    with open(f, "wb") as x: x.write(d)
+def save_binary_file(file_name, data):
+    with open(file_name, "wb") as f:
+        f.write(data)
 
-def to_wav(d, m):
-    p = parse(m); b, s = p["bits_per_sample"], p["rate"]; n, ds = 1, len(d); bs = b // 8; ba = n * bs; br = s * ba; cs = 36 + ds
-    h = struct.pack("<4sI4s4sIHHIIHH4sI", b"RIFF", cs, b"WAVE", b"fmt ", 16, 1, n, s, br, ba, b, b"data", ds)
-    return h + d
+def convert_to_wav(audio_data, mime_type):
+    parameters = parse_audio_mime_type(mime_type)
+    bits_per_sample = parameters["bits_per_sample"]
+    sample_rate = parameters["rate"]
+    num_channels = 1
+    data_size = len(audio_data)
+    bytes_per_sample = bits_per_sample // 8
+    block_align = num_channels * bytes_per_sample
+    byte_rate = sample_rate * block_align
+    chunk_size = 36 + data_size
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF", chunk_size, b"WAVE", b"fmt ", 16, 1, num_channels,
+        sample_rate, byte_rate, block_align, bits_per_sample,
+        b"data", data_size
+    )
+    return header + audio_data
 
-def parse(m):
-    b, r = 16, 24000
-    for p in m.split(";"):
-        p = p.strip()
-        if p.lower().startswith("rate="):
-            try: r = int(p.split("=", 1)[1])
-            except: pass
-        elif p.startswith("audio/L"):
-            try: b = int(p.split("L", 1)[1])
-            except: pass
-    return {"bits_per_sample": b, "rate": r}
+def parse_audio_mime_type(mime_type):
+    bits_per_sample = 16
+    rate = 24000
+    for param in mime_type.split(";"):
+        param = param.strip()
+        if param.lower().startswith("rate="):
+            try:
+                rate = int(param.split("=", 1)[1])
+            except:
+                pass
+        elif param.startswith("audio/L"):
+            try:
+                bits_per_sample = int(param.split("L", 1)[1])
+            except:
+                pass
+    return {"bits_per_sample": bits_per_sample, "rate": rate}
 
-def tts(text, out):
-    c = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-    cfg = types.GenerateContentConfig(temperature=1, response_modalities=["audio"], speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Orus"))))
-    cnt = [types.Content(role="user", parts=[types.Part.from_text(text=f"Read in Arabic, Moroccan accent: {text}")])]
-    d = b""
-    for ch in c.models.generate_content_stream(model="gemini-3.1-flash-tts-preview", contents=cnt, config=cfg):
-        if ch.parts and ch.parts[0].inline_data and ch.parts[0].inline_data.data:
-            x = ch.parts[0].inline_data; buf = x.data
-            if mimetypes.guess_extension(x.mime_type) is None: buf = to_wav(x.data, x.mime_type)
-            d += buf
-    save(out, d)
+def generate_tts(text_to_speak, output_path):
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+    model = "gemini-3.1-flash-tts-preview"
+    contents = [types.Content(
+        role="user",
+        parts=[types.Part.from_text(text=f"Read in Arabic with Neutral Moroccan accent: {text_to_speak}")]
+    )]
+    config = types.GenerateContentConfig(
+        temperature=1,
+        response_modalities=["audio"],
+        speech_config=types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Orus")
+            )
+        )
+    )
+    audio_data = b""
+    for chunk in client.models.generate_content_stream(model=model, contents=contents, config=config):
+        if chunk.parts and chunk.parts[0].inline_data and chunk.parts[0].inline_data.data:
+            inline_data = chunk.parts[0].inline_data
+            data_buffer = inline_data.data
+            if mimetypes.guess_extension(inline_data.mime_type) is None:
+                data_buffer = convert_to_wav(inline_data.data, inline_data.mime_type)
+            audio_data += data_buffer
+    save_binary_file(output_path, audio_data)
+    print(f"TTS saved: {output_path}")
 
-if __name__ == "__main__": tts(sys.argv[1], sys.argv[2])
+if __name__ == "__main__":
+    generate_tts(sys.argv[1], sys.argv[2])
